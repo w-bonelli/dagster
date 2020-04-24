@@ -409,7 +409,7 @@ def pipeline_launch_command(env, preset_name, mode, **kwargs):
     # FIXME need to check the env against environment_dict
     pipeline_run = instance.create_run_for_pipeline(
         pipeline=pipeline,
-        selector=ExecutionSelector(pipeline.name, preset.solid_subset if preset else None),
+        solid_subset=preset.solid_subset if preset else None,
         environment_dict=preset.environment_dict if preset else load_yaml_from_glob_list(env),
         mode=(preset.mode if preset else mode) or 'default',
         tags=run_tags,

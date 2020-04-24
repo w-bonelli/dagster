@@ -44,8 +44,6 @@ class TestRunStorage:
             run_id=run_id,
             environment_dict=None,
             mode=mode,
-            selector=ExecutionSelector(pipeline_name),
-            step_keys_to_execute=None,
             tags=tags,
             status=status,
         )

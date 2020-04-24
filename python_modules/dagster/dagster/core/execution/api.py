@@ -71,17 +71,14 @@ def _pipeline_execution_iterator(pipeline_context, execution_plan, pipeline_run)
             yield event
 
 
-def execute_run_iterator(pipeline, pipeline_run, instance):
+def execute_run_iterator(pipeline, pipeline_run, instance, step_keys_to_execute=None):
     check.inst_param(pipeline, 'pipeline', PipelineDefinition)
     check.inst_param(pipeline_run, 'pipeline_run', PipelineRun)
     check.inst_param(instance, 'instance', DagsterInstance)
     check.invariant(pipeline_run.status == PipelineRunStatus.NOT_STARTED)
 
     execution_plan = create_execution_plan(
-        pipeline,
-        environment_dict=pipeline_run.environment_dict,
-        mode=pipeline_run.mode,
-        step_keys_to_execute=pipeline_run.step_keys_to_execute,
+        pipeline, environment_dict=pipeline_run.environment_dict, mode=pipeline_run.mode,
     )
 
     return _execute_run_iterator_with_plan(pipeline, pipeline_run, instance, execution_plan)
@@ -119,7 +116,7 @@ def _execute_run_iterator_with_plan(pipeline, pipeline_run, instance, execution_
 
 
 def _check_execute_pipeline_args(
-    fn_name, pipeline, environment_dict, mode, preset, tags, run_config, instance
+    fn_name, pipeline, environment_dict, mode, preset, tags, solid_subset, run_config, instance
 ):
     check.inst_param(pipeline, 'pipeline', PipelineDefinition)
     environment_dict = check.opt_dict_param(environment_dict, 'environment_dict')
@@ -134,6 +131,8 @@ def _check_execute_pipeline_args(
     )
 
     tags = check.opt_dict_param(tags, 'tags', key_type=str)
+
+    check.opt_list_param(solid_subset, 'solid_subset', of_type=str)
 
     run_config = check.opt_inst_param(run_config, 'run_config', RunConfig, default=RunConfig())
 
@@ -158,7 +157,16 @@ def _check_execute_pipeline_args(
         environment_dict = pipeline_preset.environment_dict
 
         if pipeline_preset.solid_subset is not None:
-            pipeline = pipeline.build_sub_pipeline(pipeline_preset.solid_subset)
+            check.invariant(
+                solid_subset is None or solid_subset == pipeline_preset.solid_subset,
+                'The solid_subset set in preset \'{preset}\', {preset_subset}, does not agree with '
+                'the `solid_subset` argument: {solid_subset}'.format(
+                    preset=preset,
+                    preset_subset=pipeline_preset.solid_subset,
+                    solid_subset=solid_subset,
+                ),
+            )
+            solid_subset = pipeline_preset.solid_subset
 
         check.invariant(
             mode is None or mode == pipeline_preset.mode,
@@ -170,12 +178,25 @@ def _check_execute_pipeline_args(
 
         mode = pipeline_preset.mode
 
+    if solid_subset:
+        pipeline = pipeline.build_sub_pipeline(solid_subset)
+
     if run_config.mode is not None or run_config.tags:
         warnings.warn(
             (
                 'In 0.8.0, the use of `run_config` to set pipeline mode and tags will be '
                 'deprecated. Please use the `mode` and `tags` arguments to `{fn_name}` '
                 'instead.'
+            ).format(fn_name=fn_name)
+        )
+
+    if run_config.step_keys_to_execute is not None:
+        warnings.warn(
+            (
+                'The use of `run_config` to set step_keys_to_execute has been '
+                'deprecated. Please use the `solid_subset` argument to `{fn_name}` '
+                'instead, or, if you still need to specify steps in an execution plan, '
+                'use the `execute_plan` and` execute_plan_iterator` APIs.'
             ).format(fn_name=fn_name)
         )
 
@@ -214,9 +235,7 @@ def _check_execute_pipeline_args(
     check.opt_inst_param(instance, 'instance', DagsterInstance)
     instance = instance or DagsterInstance.ephemeral()
 
-    execution_plan = create_execution_plan(
-        pipeline, environment_dict, mode=mode, step_keys_to_execute=run_config.step_keys_to_execute
-    )
+    execution_plan = create_execution_plan(pipeline, environment_dict, mode=mode)
 
     return pipeline, environment_dict, instance, mode, tags, run_config, execution_plan
 
@@ -227,6 +246,7 @@ def execute_pipeline_iterator(
     mode=None,
     preset=None,
     tags=None,
+    solid_subset=None,
     run_config=None,
     instance=None,
 ):
@@ -278,6 +298,7 @@ def execute_pipeline_iterator(
         mode=mode,
         preset=preset,
         tags=tags,
+        solid_subset=solid_subset,
         run_config=run_config,
         instance=instance,
     )
@@ -287,8 +308,7 @@ def execute_pipeline_iterator(
         run_id=run_config.run_id,
         environment_dict=environment_dict,
         mode=mode,
-        selector=pipeline.selector,
-        step_keys_to_execute=run_config.step_keys_to_execute,
+        solid_subset=pipeline.selector.solid_subset,
         tags=tags,
         root_run_id=run_config.previous_run_id,
         parent_run_id=run_config.previous_run_id,
@@ -304,6 +324,7 @@ def execute_pipeline(
     mode=None,
     preset=None,
     tags=None,
+    solid_subset=None,
     run_config=None,
     instance=None,
     raise_on_error=True,
@@ -359,6 +380,7 @@ def execute_pipeline(
         mode=mode,
         preset=preset,
         tags=tags,
+        solid_subset=solid_subset,
         run_config=run_config,
         instance=instance,
     )
@@ -368,8 +390,7 @@ def execute_pipeline(
         run_id=run_config.run_id,
         environment_dict=environment_dict,
         mode=mode,
-        selector=pipeline.selector,
-        step_keys_to_execute=run_config.step_keys_to_execute,
+        solid_subset=pipeline.selector.solid_subset,
         tags=tags,
         root_run_id=run_config.previous_run_id,
         parent_run_id=run_config.previous_run_id,
@@ -497,7 +518,6 @@ def execute_partition_set(partition_set, partition_filter, instance=None):
         run = PipelineRun(
             pipeline_name=partition_set.pipeline_name,
             run_id=make_new_run_id(),
-            selector=ExecutionSelector(partition_set.pipeline_name),
             environment_dict=partition_set.environment_dict_for_partition(partition),
             mode='default',
             tags=merge_dicts(

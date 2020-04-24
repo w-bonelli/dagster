@@ -44,7 +44,6 @@ class InProcessExecutorChildProcessCommand(ChildProcessCommand):
             pipeline=pipeline_def,
             environment_dict=self.environment_dict,
             mode=self.pipeline_run.mode,
-            step_keys_to_execute=self.pipeline_run.step_keys_to_execute,
         ).build_subset_plan([self.step_key])
 
         yield instance.report_engine_event(

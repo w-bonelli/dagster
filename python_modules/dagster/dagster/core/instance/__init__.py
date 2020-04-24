@@ -423,8 +423,7 @@ class DagsterInstance:
         run_id=None,
         environment_dict=None,
         mode=None,
-        selector=None,
-        step_keys_to_execute=None,
+        solid_subset=None,
         status=None,
         tags=None,
         root_run_id=None,
@@ -437,12 +436,12 @@ class DagsterInstance:
         check.inst_param(pipeline, 'pipeline', PipelineDefinition)
         check.opt_inst_param(execution_plan, 'execution_plan', ExecutionPlan)
 
+        if solid_subset:
+            pipeline = pipeline.build_sub_pipeline(solid_subset=solid_subset)
+
         if execution_plan is None:
             execution_plan = create_execution_plan(
-                pipeline,
-                environment_dict=environment_dict,
-                mode=mode,
-                step_keys_to_execute=step_keys_to_execute,
+                pipeline, environment_dict=environment_dict, mode=mode,
             )
 
         return self.get_or_create_run(
@@ -450,13 +449,7 @@ class DagsterInstance:
             run_id=run_id,
             environment_dict=environment_dict,
             mode=check.opt_str_param(mode, 'mode', default=pipeline.get_default_mode_name()),
-            selector=check.opt_inst_param(
-                selector,
-                'selector',
-                ExecutionSelector,
-                default=ExecutionSelector(name=pipeline.name),
-            ),
-            step_keys_to_execute=step_keys_to_execute,
+            solid_subset=solid_subset,
             status=status,
             tags=tags,
             root_run_id=root_run_id,
@@ -473,8 +466,7 @@ class DagsterInstance:
         run_id=None,
         environment_dict=None,
         mode=None,
-        selector=None,
-        step_keys_to_execute=None,
+        solid_subset=None,
         status=None,
         tags=None,
         root_run_id=None,
@@ -492,8 +484,7 @@ class DagsterInstance:
             run_id=run_id,
             environment_dict=environment_dict,
             mode=mode,
-            selector=selector,
-            step_keys_to_execute=step_keys_to_execute,
+            solid_subset=solid_subset,
             status=status,
             tags=tags,
             root_run_id=root_run_id,

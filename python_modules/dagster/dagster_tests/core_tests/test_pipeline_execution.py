@@ -637,9 +637,8 @@ def test_single_step_reexecution():
     reexecution_result = execute_pipeline(
         pipeline_def,
         environment_dict={'storage': {'filesystem': {}}},
-        run_config=RunConfig(
-            previous_run_id=pipeline_result.run_id, step_keys_to_execute=['add_one.compute']
-        ),
+        solid_subset=['add_one'],
+        run_config=RunConfig(previous_run_id=pipeline_result.run_id),
         instance=instance,
     )
 

@@ -55,12 +55,10 @@ class PipelineRun(
     namedtuple(
         '_PipelineRun',
         (
-            'pipeline_name run_id environment_dict mode selector '
-            'step_keys_to_execute status tags root_run_id parent_run_id '
-            'pipeline_snapshot_id execution_plan_snapshot_id'
+            'pipeline_name run_id environment_dict mode solid_subset status tags root_run_id '
+            'parent_run_id pipeline_snapshot_id execution_plan_snapshot_id'
         ),
     ),
-    IRunConfig,
 ):
     '''Serializable internal representation of a pipeline run, as stored in a
     :py:class:`~dagster.core.storage.runs.RunStorage`.
@@ -81,8 +79,7 @@ class PipelineRun(
         run_id=None,
         environment_dict=None,
         mode=None,
-        selector=None,
-        step_keys_to_execute=None,
+        solid_subset=None,
         status=None,
         tags=None,
         root_run_id=None,
@@ -92,12 +89,11 @@ class PipelineRun(
         ## GRAVEYARD BELOW
         # see https://github.com/dagster-io/dagster/issues/2372 for explanation
         previous_run_id=None,
+        selector=None,
     ):
         from dagster.core.definitions.pipeline import ExecutionSelector
 
-        selector = check.opt_inst_param(selector, 'selector', ExecutionSelector)
-        if not selector and pipeline_name:
-            selector = ExecutionSelector(pipeline_name)
+        check.opt_list_param(solid_subset, 'solid_subset', of_type=str)
 
         root_run_id = check.opt_str_param(root_run_id, 'root_run_id')
         parent_run_id = check.opt_str_param(parent_run_id, 'parent_run_id')
@@ -118,6 +114,20 @@ class PipelineRun(
                 parent_run_id = previous_run_id
                 root_run_id = previous_run_id
 
+        check.opt_inst_param(selector, 'selector', ExecutionSelector)
+        if selector:
+            check.invariant(
+                solid_subset is None or selector.solid_subset == solid_subset,
+                (
+                    'Conflicting solid_subset {solid_subset} in arguments to PipelineRun: '
+                    'selector was passed with subset {selector_subset}'.format(
+                        solid_subset=solid_subset, selector_subset=selector.solid_subset
+                    )
+                ),
+            )
+            if solid_subset is None:
+                solid_subset = selector.solid_subset
+
         return super(PipelineRun, cls).__new__(
             cls,
             pipeline_name=check.opt_str_param(pipeline_name, 'pipeline_name'),
@@ -126,10 +136,7 @@ class PipelineRun(
                 environment_dict, 'environment_dict', key_type=str
             ),
             mode=check.opt_str_param(mode, 'mode'),
-            selector=selector,
-            step_keys_to_execute=None
-            if step_keys_to_execute is None
-            else check.list_param(step_keys_to_execute, 'step_keys_to_execute', of_type=str),
+            solid_subset=solid_subset,
             status=check.opt_inst_param(
                 status, 'status', PipelineRunStatus, PipelineRunStatus.NOT_STARTED
             ),
@@ -165,6 +172,12 @@ class PipelineRun(
     def previous_run_id(self):
         # Compat
         return self.parent_run_id
+
+    @property
+    def selector(self):
+        from dagster.core.definitions.pipeline import ExecutionSelector
+
+        return ExecutionSelector(name=self.pipeline_name, solid_subset=self.solid_subset)
 
     @staticmethod
     def tags_for_schedule(schedule):

@@ -433,7 +433,6 @@ class SolidExecutionResult(object):
                     pipeline=context.pipeline_def,
                     environment_dict=context.environment_dict,
                     mode=context.pipeline_run.mode,
-                    step_keys_to_execute=context.pipeline_run.step_keys_to_execute,
                 )
                 values = {}
                 for compute_step_event in self.compute_step_events:
@@ -486,7 +485,6 @@ class SolidExecutionResult(object):
                             pipeline=context.pipeline_def,
                             environment_dict=context.environment_dict,
                             mode=context.pipeline_run.mode,
-                            step_keys_to_execute=context.pipeline_run.step_keys_to_execute,
                         )
 
                         value = self._get_value(
