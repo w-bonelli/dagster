@@ -1,6 +1,7 @@
 import os
 import subprocess
 import uuid
+import sys
 
 from dagster import check
 from dagster.core.events import EngineEventData
@@ -69,4 +70,8 @@ def cli_api_execute_run(output_file, instance, repo_yaml, pipeline_run):
         engine_event_data=EngineEventData(marker_start='cli_api_subprocess_init'),
     )
 
-    return subprocess.Popen(parts)
+    creationflags = 0
+    if sys.platform == 'win32':
+        creationflags = subprocess.CREATE_NEW_PROCESS_GROUP
+
+    return subprocess.Popen(parts, creationflags=creationflags)

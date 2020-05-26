@@ -2,6 +2,7 @@ import os
 import signal
 import threading
 import time
+import sys
 
 from dagster import check
 from dagster.api.execute_run import cli_api_execute_run
@@ -216,7 +217,10 @@ class CliApiRunLauncher(RunLauncher, ConfigurableClass):
 
         # Send sigint to allow the pipeline run to terminate gracefully and
         # report termination to the instance.
-        process.send_signal(signal.SIGINT)
+        if sys.platform == 'win32':
+            process.send_signal(signal.CTRL_BREAK_EVENT)
+        else:
+            process.send_signal(signal.SIGINT)
 
         process.wait()
         return True

@@ -2,6 +2,7 @@ from __future__ import print_function
 
 import os
 import sys
+import signal
 
 import click
 
@@ -142,6 +143,9 @@ def execute_run_command(output_file, config_yaml, pipeline_run, instance_ref):
 
 
 def _execute_run_command_body(output_file, config_yaml, pipeline_run_json, instance_ref_json):
+    if sys.platform == 'win32':
+        signal.signal(signal.SIGBREAK, signal.getsignal(signal.SIGINT))
+
     with ipc_write_stream(output_file) as stream:
         instance = _get_instance(stream, instance_ref_json)
         if not instance:
