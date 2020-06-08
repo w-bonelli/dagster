@@ -85,6 +85,12 @@ class ExternalRepository:
     def handle(self):
         return self._handle
 
+    def get_reconstruction_info(self):
+        return self._handle.get_reconstruction_info()
+
+    def get_reconstruction_id(self):
+        return self.get_reconstruction_info().get_id()
+
 
 class ExternalPipeline(RepresentedPipeline):
     '''
@@ -170,6 +176,12 @@ class ExternalPipeline(RepresentedPipeline):
     @property
     def handle(self):
         return self._handle
+
+    def get_reconstruction_info(self):
+        return self._handle.get_reconstruction_info()
+
+    def get_reconstruction_id(self):
+        return self.get_reconstruction_info().get_id()
 
 
 class ExternalExecutionPlan:
@@ -299,6 +311,12 @@ class ExternalSchedule:
     @property
     def handle(self):
         return self._handle
+
+    def get_reconstruction_info(self):
+        return self._handle.get_reconstruction_info()
+
+    def get_reconstruction_id(self):
+        return self.get_reconstruction_info().get_id()
 
 
 class ExternalPartitionSet:
